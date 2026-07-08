@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "nengo-quiz-v7";
+const CACHE_NAME = "nengo-quiz-v8";
 const ASSETS = [
   "./",
   "./index.html",
