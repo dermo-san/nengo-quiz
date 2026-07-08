@@ -480,6 +480,10 @@ select {
   gap: 10px;
 }
 
+.other-half-action {
+  grid-column: 1 / -1;
+}
+
 #sessionHistory,
 .master-list {
   display: grid;

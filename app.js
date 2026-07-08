@@ -77,6 +77,7 @@ function bindEvents() {
   $("answerButton").addEventListener("click", submitAnswer);
   $("nextButton").addEventListener("click", nextQuestion);
   $("retryWrongButton").addEventListener("click", retryWrongOnly);
+  $("otherHalfButton").addEventListener("click", startOtherHalf);
   $("againButton").addEventListener("click", repeatLastSession);
   $("resultHomeButton").addEventListener("click", () => { renderAll(); showView("homeView"); });
   $("fileInput").addEventListener("change", handleFileLoad);
@@ -292,6 +293,7 @@ function finishQuiz() {
     mode: quiz.mode,
     label: quiz.label,
     round: quiz.round,
+    segment: quiz.segment,
     count: quiz.questions.length,
     correct,
     answers: quiz.answers,
@@ -311,6 +313,17 @@ function retryWrongOnly() {
   const selected = wrongIds.map((id) => getQuestion(id)).filter(Boolean);
   if (!selected.length) return;
   startQuiz({ mode: "retry", round: latest.round, label: "間違いだけ再挑戦", questions: selected });
+}
+
+function startOtherHalf() {
+  const latest = sessions[sessions.length - 1];
+  if (!canStartOtherHalf(latest)) return;
+  settings.questionCount = 15;
+  settings.roundSegment = latest.segment === "first" ? "second" : "first";
+  syncSettingsControls();
+  saveSettings();
+  renderHome();
+  startRound(latest.round);
 }
 
 function repeatLastSession() {
@@ -417,6 +430,11 @@ function renderResult(session) {
   $("resultPercent").textContent = `${percent}%`;
   $("resultScore").textContent = `${session.correct}/${session.count}`;
   $("againButton").textContent = `もう一回${session.count}問`;
+  const showOtherHalf = canStartOtherHalf(session);
+  $("otherHalfButton").hidden = !showOtherHalf;
+  $("otherHalfButton").textContent = showOtherHalf
+    ? `${session.segment === "first" ? "後半" : "前半"}15問に挑戦`
+    : "残りの15問に挑戦";
   $("scoreFill").style.width = `${percent}%`;
   $("resultMessage").textContent = percent === 100 ? "満点マスター！" : percent >= 90 ? "目標クリア！" : percent >= 80 ? "合格ラインクリア！" : "あと少しで合格";
   const wrong = session.answers.filter((a) => !a.correct);
@@ -428,6 +446,16 @@ function renderResult(session) {
     }).join("")
     : `<p class="muted">まちがいはありません。</p>`;
   if (percent >= 90) runConfetti(percent === 100);
+}
+
+function canStartOtherHalf(session) {
+  return Boolean(
+    session &&
+    session.mode === "round" &&
+    session.count === 15 &&
+    (session.segment === "first" || session.segment === "second") &&
+    Number.isInteger(session.round)
+  );
 }
 
 function renderRecords() {
