@@ -310,7 +310,7 @@ function renderCountdownCard(test) {
   const target = startOfLocalDay(new Date(`${test.date}T00:00:00+09:00`));
   const diff = Math.ceil((target - today) / 86400000);
   const main = diff < 0 ? "終了" : `あと${diff}日`;
-  return `<article class="count-card"><span>${test.label} ${test.range}</span><strong>${main}</strong><span>${formatDate(test.date)}</span></article>`;
+  return `<article class="count-card"><span>${formatDate(test.date)} ${test.label} ${test.range}</span><strong>${main}</strong></article>`;
 }
 
 function renderRoundMeter(test) {
