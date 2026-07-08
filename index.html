@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#25635b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="年号120">
+  <title>年号120</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="icon-button" id="homeButton" type="button" aria-label="ホーム">⌂</button>
+      <div>
+        <p class="eyebrow">歴史年号暗記</p>
+        <h1>年号120</h1>
+      </div>
+      <div class="data-pill" id="dataStatus">読み込み中</div>
+    </header>
+
+    <main>
+      <section id="homeView" class="view active">
+        <div class="section-head">
+          <h2>今日の練習</h2>
+          <button class="secondary" id="recordsNav" type="button">記録</button>
+        </div>
+
+        <div class="countdown-grid" id="countdownGrid"></div>
+        <div class="meter-grid" id="roundMeters"></div>
+
+        <section class="panel">
+          <h3>回別30問</h3>
+          <div class="order-row" role="group" aria-label="出題順">
+            <label><input type="radio" name="order" value="ordered" checked> 順番どおり</label>
+            <label><input type="radio" name="order" value="shuffle"> シャッフル</label>
+          </div>
+          <div class="round-grid">
+            <button class="primary round-start" data-round="1" type="button">第1回</button>
+            <button class="primary round-start" data-round="2" type="button">第2回</button>
+            <button class="primary round-start" data-round="3" type="button">第3回</button>
+            <button class="primary round-start" data-round="4" type="button">第4回</button>
+          </div>
+        </section>
+
+        <section class="panel compact-panel">
+          <h3>ほかの練習</h3>
+          <div class="action-grid">
+            <button id="weakAllStart" type="button">苦手優先 全範囲</button>
+            <button id="randomAllStart" type="button">全範囲ランダム</button>
+          </div>
+          <div class="weak-row">
+            <label for="weakRound">回を選ぶ</label>
+            <select id="weakRound">
+              <option value="1">第1回</option>
+              <option value="2">第2回</option>
+              <option value="3">第3回</option>
+              <option value="4">第4回</option>
+            </select>
+            <button id="weakRoundStart" type="button">苦手優先</button>
+          </div>
+        </section>
+
+        <section class="panel compact-panel">
+          <div class="section-head tight">
+            <h3>カレンダー</h3>
+            <button class="secondary" id="settingsNav" type="button">設定</button>
+          </div>
+          <div id="streakLine" class="streak-line"></div>
+          <div class="calendar" id="miniCalendar"></div>
+        </section>
+      </section>
+
+      <section id="quizView" class="view">
+        <div class="quiz-status">
+          <strong id="quizProgress">1/30</strong>
+          <span id="comboLine">コンボ 0</span>
+        </div>
+        <article class="question-card">
+          <p id="questionEvent"></p>
+        </article>
+        <div class="answer-display" id="answerDisplay" aria-live="polite"></div>
+        <div class="keypad" id="keypad" aria-label="年号入力テンキー">
+          <button data-key="1" type="button">1</button>
+          <button data-key="2" type="button">2</button>
+          <button data-key="3" type="button">3</button>
+          <button data-key="4" type="button">4</button>
+          <button data-key="5" type="button">5</button>
+          <button data-key="6" type="button">6</button>
+          <button data-key="7" type="button">7</button>
+          <button data-key="8" type="button">8</button>
+          <button data-key="9" type="button">9</button>
+          <button data-action="backspace" type="button">⌫</button>
+          <button data-key="0" type="button">0</button>
+          <button data-action="clear" type="button">C</button>
+        </div>
+        <button class="primary answer-button" id="answerButton" type="button" disabled>解答</button>
+      </section>
+
+      <section id="feedbackView" class="view">
+        <div class="feedback-mark" id="feedbackMark">○</div>
+        <article class="panel feedback-panel">
+          <h2 id="feedbackTitle">正解</h2>
+          <p id="feedbackCorrect"></p>
+          <p id="feedbackYourAnswer" class="muted"></p>
+          <p id="feedbackGoro" class="goro"></p>
+        </article>
+        <button class="primary answer-button" id="nextButton" type="button">次へ</button>
+      </section>
+
+      <section id="resultView" class="view">
+        <div class="result-hero">
+          <p id="resultMessage"></p>
+          <strong id="resultPercent">0%</strong>
+          <span id="resultScore">0/30</span>
+        </div>
+        <div class="score-gauge" aria-label="正解率ゲージ">
+          <div class="score-fill" id="scoreFill"></div>
+          <span class="line pass-line">80</span>
+          <span class="line goal-line">90</span>
+        </div>
+        <section class="panel">
+          <h3>まちがえた問題</h3>
+          <div id="wrongList" class="wrong-list"></div>
+        </section>
+        <div class="result-actions">
+          <button id="retryWrongButton" type="button">間違いだけ再挑戦</button>
+          <button id="againButton" type="button">もう一回30問</button>
+          <button class="secondary" id="resultHomeButton" type="button">ホームへ</button>
+        </div>
+      </section>
+
+      <section id="recordsView" class="view">
+        <div class="section-head">
+          <h2>記録</h2>
+          <button class="secondary" data-nav-home type="button">ホーム</button>
+        </div>
+        <section class="panel compact-panel">
+          <h3>スタンプ</h3>
+          <div id="recordStreak" class="streak-line"></div>
+          <div class="calendar" id="recordCalendar"></div>
+        </section>
+        <section class="panel">
+          <h3>回別成績</h3>
+          <div id="sessionHistory"></div>
+        </section>
+        <section class="panel">
+          <h3>マスター</h3>
+          <div id="masterList" class="master-list"></div>
+        </section>
+      </section>
+
+      <section id="settingsView" class="view">
+        <div class="section-head">
+          <h2>設定とデータ</h2>
+          <button class="secondary" data-nav-home type="button">ホーム</button>
+        </div>
+        <section class="panel">
+          <h3>問題データ</h3>
+          <label class="file-label">
+            問題ファイルを読み込む
+            <input id="fileInput" type="file" accept=".json,application/json">
+          </label>
+          <button id="sampleLoadButton" type="button">サンプルデータで試す</button>
+          <p id="dataMessage" class="data-message"></p>
+        </section>
+        <section class="panel">
+          <h3>エクスポート / インポート</h3>
+          <div class="action-grid">
+            <button id="exportButton" type="button">書き出す</button>
+            <button id="importButton" type="button">読み込む</button>
+          </div>
+          <textarea id="dataText" spellcheck="false" placeholder="ここにJSONが表示されます。読み込むときはJSONを貼り付けます。"></textarea>
+          <button class="danger" id="clearAllButton" type="button">保存データを全消去</button>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

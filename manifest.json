@@ -1,0 +1,17 @@
+{
+  "name": "年号120",
+  "short_name": "年号120",
+  "description": "歴史年号120問を30問ずつ練習する暗記アプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fbfaf5",
+  "theme_color": "#25635b",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
