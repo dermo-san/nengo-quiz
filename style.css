@@ -502,6 +502,29 @@ select {
   background: #fff;
 }
 
+.session-history-row {
+  width: 100%;
+  grid-template-columns: 1fr auto auto;
+  cursor: pointer;
+  text-align: left;
+}
+
+.session-history-row:hover,
+.session-history-row:focus-visible {
+  border-color: var(--brand);
+  background: #f4f9f7;
+}
+
+.history-arrow {
+  color: var(--muted);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.session-detail-hero {
+  padding-top: 4px;
+}
+
 .file-label {
   display: grid;
   gap: 8px;

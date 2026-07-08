@@ -18,7 +18,7 @@ const FIRST_MASTER_STREAK = 3;
 const REMASTER_STREAK = 2;
 
 const $ = (id) => document.getElementById(id);
-const views = ["homeView", "quizView", "feedbackView", "resultView", "recordsView", "settingsView"];
+const views = ["homeView", "quizView", "feedbackView", "resultView", "recordsView", "sessionDetailView", "settingsView"];
 
 let questionDoc = null;
 let questions = [];
@@ -43,6 +43,8 @@ function bindEvents() {
   $("homeButton").addEventListener("click", () => showView("homeView"));
   $("recordsNav").addEventListener("click", () => { renderRecords(); showView("recordsView"); });
   $("settingsNav").addEventListener("click", () => showView("settingsView"));
+  $("sessionHistory").addEventListener("click", handleSessionHistoryClick);
+  $("sessionDetailBackButton").addEventListener("click", () => { renderRecords(); showView("recordsView"); });
   document.querySelectorAll("[data-nav-home]").forEach((button) => {
     button.addEventListener("click", () => showView("homeView"));
   });
@@ -464,13 +466,42 @@ function renderRecords() {
   $("sessionHistory").innerHTML = sessions.length
     ? sessions.slice(-8).reverse().map((s) => {
       const percent = Math.round((s.correct / s.count) * 100);
-      return `<div class="history-row"><span>${formatDateTime(s.date)} ${escapeHtml(s.label)}</span><strong>${percent}%</strong></div>`;
+      return `<button class="history-row session-history-row" data-session-id="${escapeHtml(s.id)}" type="button"><span>${formatDateTime(s.date)} ${escapeHtml(s.label)}</span><strong>${percent}%</strong><span class="history-arrow">›</span></button>`;
     }).join("")
     : `<p class="muted">まだ記録はありません。</p>`;
   $("masterList").innerHTML = TESTS.map((test) => {
     const mastered = questions.filter((q) => q.round === test.round && stats[q.id]?.mastered).length;
     return `<div class="master-row"><span>${test.label}</span><strong>${mastered}/30</strong></div>`;
   }).join("");
+}
+
+function handleSessionHistoryClick(event) {
+  const row = event.target.closest("[data-session-id]");
+  if (!row) return;
+  const session = sessions.find((s) => String(s.id) === row.dataset.sessionId);
+  if (!session) return;
+  renderSessionDetail(session);
+  showView("sessionDetailView");
+}
+
+function renderSessionDetail(session) {
+  const count = Number(session.count) || 0;
+  const correct = Number(session.correct) || 0;
+  const percent = count ? Math.round((correct / count) * 100) : 0;
+  $("sessionDetailMeta").textContent = `${formatDateTime(session.date)} ${session.label || "学習記録"}`;
+  $("sessionDetailPercent").textContent = `${percent}%`;
+  $("sessionDetailScore").textContent = `${correct}/${count}`;
+
+  const wrong = Array.isArray(session.answers) ? session.answers.filter((a) => !a.correct) : [];
+  $("sessionDetailWrongList").innerHTML = wrong.length
+    ? wrong.map((a) => {
+      const q = getQuestion(a.questionId);
+      const event = q ? q.event : "(問題データなし)";
+      const year = q ? `${q.year}年` : "不明";
+      const input = a.input === undefined || a.input === null ? "未入力" : `${a.input}年`;
+      return `<div class="wrong-item"><strong>${escapeHtml(event)}</strong><span>正解 ${escapeHtml(year)} / 自分 ${escapeHtml(input)}</span></div>`;
+    }).join("")
+    : `<p class="muted">まちがいはありません。</p>`;
 }
 
 function renderCalendar(container) {
