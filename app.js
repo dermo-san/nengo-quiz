@@ -18,7 +18,7 @@ const FIRST_MASTER_STREAK = 3;
 const REMASTER_STREAK = 2;
 
 const $ = (id) => document.getElementById(id);
-const views = ["homeView", "quizView", "feedbackView", "resultView", "recordsView", "sessionDetailView", "settingsView"];
+const views = ["homeView", "quizView", "feedbackView", "flashcardView", "resultView", "recordsView", "sessionDetailView", "settingsView"];
 
 let questionDoc = null;
 let questions = [];
@@ -27,6 +27,7 @@ let sessions = [];
 let settings = { order: "ordered", questionCount: 30, roundSegment: "first" };
 let quiz = null;
 let lastSessionPlan = null;
+let flashcard = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -72,6 +73,9 @@ function bindEvents() {
   document.querySelectorAll(".round-start").forEach((button) => {
     button.addEventListener("click", () => startRound(Number(button.dataset.round)));
   });
+  document.querySelectorAll(".flashcard-start").forEach((button) => {
+    button.addEventListener("click", () => startFlashcards(Number(button.dataset.round)));
+  });
   $("weakAllStart").addEventListener("click", () => startWeak(null));
   $("weakRoundStart").addEventListener("click", () => startWeak(Number($("weakRound").value)));
   $("randomAllStart").addEventListener("click", startRandomAll);
@@ -82,6 +86,13 @@ function bindEvents() {
   $("otherHalfButton").addEventListener("click", startOtherHalf);
   $("againButton").addEventListener("click", repeatLastSession);
   $("resultHomeButton").addEventListener("click", () => { renderAll(); showView("homeView"); });
+  $("flashcardFlipButton").addEventListener("click", flipFlashcard);
+  $("flashcardDoneButton").addEventListener("click", () => answerFlashcard("done"));
+  $("flashcardUnsureButton").addEventListener("click", () => answerFlashcard("unsure"));
+  $("flashcardAgainButton").addEventListener("click", () => answerFlashcard("again"));
+  $("flashcardTestButton").addEventListener("click", startFlashcardTest);
+  $("flashcardRestartButton").addEventListener("click", restartFlashcards);
+  $("flashcardHomeButton").addEventListener("click", () => showView("homeView"));
   $("fileInput").addEventListener("change", handleFileLoad);
   $("sampleLoadButton").addEventListener("click", async () => {
     const doc = await fetchSampleQuestions();
@@ -187,21 +198,30 @@ function ensureStats() {
   stats = next;
 }
 
-function startRound(round) {
+function getRoundQuestions(round, questionCount, segment) {
   let selected = questions.filter((q) => q.round === round).sort((a, b) => a.id - b.id);
-  const questionCount = getQuestionCount();
-  const segment = getRoundSegment();
   if (questionCount === 15) {
     const col = (round - 1) * 2 + (segment === "second" ? 2 : 1);
     selected = selected.filter((q) => q.col === col);
   }
+  return selected;
+}
+
+function getRoundLabel(round, questionCount, segment) {
+  return `${TESTS[round - 1].label} ${questionCount}問${questionCount === 15 ? ` ${segment === "second" ? "後半" : "前半"}` : ""}`;
+}
+
+function startRound(round) {
+  const questionCount = getQuestionCount();
+  const segment = getRoundSegment();
+  let selected = getRoundQuestions(round, questionCount, segment);
   if (settings.order === "shuffle") selected = shuffle(selected);
   startQuiz({
     mode: "round",
     round,
     questionCount,
     segment: questionCount === 15 ? segment : null,
-    label: `${TESTS[round - 1].label} ${questionCount}問${questionCount === 15 ? ` ${segment === "second" ? "後半" : "前半"}` : ""} ${settings.order === "shuffle" ? "シャッフル" : "順番"}`,
+    label: `${getRoundLabel(round, questionCount, segment)} ${settings.order === "shuffle" ? "シャッフル" : "順番"}`,
     questions: selected
   });
 }
@@ -229,6 +249,79 @@ function startWeak(round) {
     label: round ? `${TESTS[round - 1].label} 苦手優先 ${questionCount}問` : `苦手優先 全範囲 ${questionCount}問`,
     questions: weightedPick(pool, Math.min(questionCount, pool.length))
   });
+}
+
+function startFlashcards(round) {
+  settings.questionCount = 15;
+  const segment = getRoundSegment();
+  syncSettingsControls();
+  saveSettings();
+  renderHome();
+  let selected = getRoundQuestions(round, 15, segment);
+  if (settings.order === "shuffle") selected = shuffle(selected);
+  if (!selected.length) return;
+  flashcard = {
+    round,
+    segment,
+    label: `${TESTS[round - 1].label} ${segment === "second" ? "後半" : "前半"}`,
+    original: [...selected],
+    deck: [...selected],
+    current: null,
+    flipped: false,
+    total: selected.length
+  };
+  nextFlashcard();
+  showView("flashcardView");
+}
+
+function nextFlashcard() {
+  if (!flashcard) return;
+  if (!flashcard.deck.length) {
+    flashcard.current = null;
+    flashcard.flipped = false;
+    renderFlashcard();
+    return;
+  }
+  flashcard.current = flashcard.deck.shift();
+  flashcard.flipped = false;
+  renderFlashcard();
+}
+
+function flipFlashcard() {
+  if (!flashcard?.current) return;
+  flashcard.flipped = true;
+  renderFlashcard();
+}
+
+function answerFlashcard(result) {
+  if (!flashcard?.current || !flashcard.flipped) return;
+  const current = flashcard.current;
+  flashcard.current = null;
+  if (result !== "done") {
+    flashcard.deck.push(current);
+  }
+  nextFlashcard();
+}
+
+function startFlashcardTest() {
+  if (!flashcard) return;
+  settings.questionCount = 15;
+  settings.roundSegment = flashcard.segment;
+  syncSettingsControls();
+  saveSettings();
+  renderHome();
+  startRound(flashcard.round);
+}
+
+function restartFlashcards() {
+  if (!flashcard) return;
+  const { round, segment } = flashcard;
+  settings.questionCount = 15;
+  settings.roundSegment = segment;
+  syncSettingsControls();
+  saveSettings();
+  renderHome();
+  startFlashcards(round);
 }
 
 function startQuiz(plan) {
@@ -425,6 +518,24 @@ function renderFeedback(q, input, isCorrect, isBestCombo) {
   $("feedbackCorrect").textContent = `${q.event} → ${q.year}年`;
   $("feedbackYourAnswer").textContent = isCorrect ? "" : `自分の答え: ${input}年`;
   $("feedbackGoro").textContent = q.goro ? `語呂: ${q.goro}` : "";
+}
+
+function renderFlashcard() {
+  if (!flashcard) return;
+  const q = flashcard.current;
+  const remaining = flashcard.deck.length + (q ? 1 : 0);
+  const complete = !q;
+  $("flashcardProgress").textContent = `のこり${remaining}枚`;
+  $("flashcardSetLabel").textContent = flashcard.label;
+  $("flashcardComplete").hidden = !complete;
+  $("flashcardCard").hidden = complete;
+  $("flashcardFlipButton").hidden = complete || flashcard.flipped;
+  $("flashcardActions").hidden = complete || !flashcard.flipped;
+  $("flashcardSideLabel").textContent = flashcard.flipped ? "年号" : "出来事";
+  $("flashcardFront").textContent = q ? q.event : "";
+  $("flashcardBack").hidden = !q || !flashcard.flipped;
+  $("flashcardYear").textContent = q ? `${q.year}年` : "";
+  $("flashcardGoro").textContent = q?.goro ? `語呂: ${q.goro}` : "";
 }
 
 function renderResult(session) {

@@ -48,11 +48,19 @@
             <label><input type="radio" name="roundSegment" value="first" checked> 前半</label>
             <label><input type="radio" name="roundSegment" value="second"> 後半</label>
           </div>
+          <p class="mode-label">テストする</p>
           <div class="round-grid">
             <button class="primary round-start" data-round="1" type="button">第1回</button>
             <button class="primary round-start" data-round="2" type="button">第2回</button>
             <button class="primary round-start" data-round="3" type="button">第3回</button>
             <button class="primary round-start" data-round="4" type="button">第4回</button>
+          </div>
+          <p class="mode-label">おぼえる（カード）</p>
+          <div class="round-grid card-round-grid">
+            <button class="secondary flashcard-start" data-round="1" type="button">第1回カード</button>
+            <button class="secondary flashcard-start" data-round="2" type="button">第2回カード</button>
+            <button class="secondary flashcard-start" data-round="3" type="button">第3回カード</button>
+            <button class="secondary flashcard-start" data-round="4" type="button">第4回カード</button>
           </div>
         </section>
 
@@ -120,6 +128,36 @@
           <p id="feedbackGoro" class="goro"></p>
         </article>
         <button class="primary answer-button" id="nextButton" type="button">次へ</button>
+      </section>
+
+      <section id="flashcardView" class="view">
+        <div class="quiz-status">
+          <strong id="flashcardProgress">のこり15枚</strong>
+          <span id="flashcardSetLabel">第1回 前半</span>
+        </div>
+        <article class="flashcard-card" id="flashcardCard">
+          <p class="flashcard-side-label" id="flashcardSideLabel">出来事</p>
+          <p id="flashcardFront" class="flashcard-front"></p>
+          <div id="flashcardBack" class="flashcard-back" hidden>
+            <strong id="flashcardYear"></strong>
+            <span id="flashcardGoro" class="goro"></span>
+          </div>
+        </article>
+        <button class="primary answer-button" id="flashcardFlipButton" type="button">めくる</button>
+        <div class="flashcard-actions" id="flashcardActions" hidden>
+          <button class="primary" id="flashcardDoneButton" type="button">できた</button>
+          <button id="flashcardUnsureButton" type="button">あやしい</button>
+          <button id="flashcardAgainButton" type="button">まだ</button>
+        </div>
+        <section class="panel flashcard-complete" id="flashcardComplete" hidden>
+          <h2>全部できた！</h2>
+          <p>この15問をテストしてみよう。</p>
+          <div class="result-actions">
+            <button class="primary" id="flashcardTestButton" type="button">この15問をテスト</button>
+            <button id="flashcardRestartButton" type="button">もう一回カード</button>
+            <button class="secondary" id="flashcardHomeButton" type="button">ホーム</button>
+          </div>
+        </section>
       </section>
 
       <section id="resultView" class="view">
