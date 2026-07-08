@@ -146,6 +146,18 @@ h3 { font-size: 19px; margin-bottom: 12px; }
   box-shadow: none;
 }
 
+.review-panel {
+  display: grid;
+  grid-template-columns: 1fr minmax(130px, 190px);
+  align-items: center;
+  gap: 12px;
+}
+
+.review-panel h3,
+.review-panel p {
+  margin-bottom: 4px;
+}
+
 .countdown-grid,
 .meter-grid,
 .round-grid,
@@ -554,13 +566,15 @@ select {
 }
 
 #sessionHistory,
-.master-list {
+.master-list,
+.weak-ranking {
   display: grid;
   gap: 10px;
 }
 
 .history-row,
-.master-row {
+.master-row,
+.weak-rank-row {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -569,6 +583,15 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+}
+
+.weak-rank-row {
+  grid-template-columns: 1fr auto auto;
+}
+
+.weak-rank-row span {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .session-history-row {
@@ -645,6 +668,8 @@ textarea {
   .action-grid,
   .flashcard-actions,
   .result-actions { grid-template-columns: 1fr; }
+  .review-panel,
+  .weak-rank-row { grid-template-columns: 1fr; }
   .weak-row { grid-template-columns: 1fr; align-items: stretch; }
   .question-card { min-height: 190px; }
   .question-card p { font-size: 24px; }

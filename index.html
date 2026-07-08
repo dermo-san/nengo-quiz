@@ -34,6 +34,14 @@
         <div class="countdown-grid" id="countdownGrid"></div>
         <div class="meter-grid" id="roundMeters"></div>
 
+        <section class="panel review-panel">
+          <div>
+            <h3 id="reviewTitle">今日の復習はありません</h3>
+            <p id="reviewText" class="muted">テストで解いた問題が、次の復習日に出てきます。</p>
+          </div>
+          <button class="primary" id="reviewStartButton" type="button" disabled>復習する</button>
+        </section>
+
         <section class="panel">
           <h3 id="roundModeTitle">回別30問</h3>
           <div class="order-row" role="group" aria-label="出題数">
@@ -196,6 +204,13 @@
         <section class="panel">
           <h3>回別成績</h3>
           <div id="sessionHistory"></div>
+        </section>
+        <section class="panel">
+          <div class="section-head tight">
+            <h3>苦手ランキング</h3>
+            <button class="secondary" id="weakReviewButton" type="button" disabled>この苦手を練習</button>
+          </div>
+          <div id="weakRanking" class="weak-ranking"></div>
         </section>
         <section class="panel">
           <h3>マスター</h3>

@@ -16,6 +16,7 @@ const TESTS = [
 
 const FIRST_MASTER_STREAK = 3;
 const REMASTER_STREAK = 2;
+const INTERVAL_DAYS = { 1: 1, 2: 2, 3: 4, 4: 7, 5: 14 };
 
 const $ = (id) => document.getElementById(id);
 const views = ["homeView", "quizView", "feedbackView", "flashcardView", "resultView", "recordsView", "sessionDetailView", "settingsView"];
@@ -76,6 +77,8 @@ function bindEvents() {
   document.querySelectorAll(".flashcard-start").forEach((button) => {
     button.addEventListener("click", () => startFlashcards(Number(button.dataset.round)));
   });
+  $("reviewStartButton").addEventListener("click", startReview);
+  $("weakReviewButton").addEventListener("click", startWeakReview);
   $("weakAllStart").addEventListener("click", () => startWeak(null));
   $("weakRoundStart").addEventListener("click", () => startWeak(Number($("weakRound").value)));
   $("randomAllStart").addEventListener("click", startRandomAll);
@@ -192,7 +195,9 @@ function ensureStats() {
       streak: Number(current.streak) || 0,
       mastered,
       everMastered: typeof current.everMastered === "boolean" ? current.everMastered : mastered,
-      lastCorrect: typeof current.lastCorrect === "boolean" ? current.lastCorrect : null
+      lastCorrect: typeof current.lastCorrect === "boolean" ? current.lastCorrect : null,
+      box: Number(current.box) || 0,
+      due: typeof current.due === "string" ? current.due : null
     };
   }
   stats = next;
@@ -248,6 +253,32 @@ function startWeak(round) {
     segment: null,
     label: round ? `${TESTS[round - 1].label} 苦手優先 ${questionCount}問` : `苦手優先 全範囲 ${questionCount}問`,
     questions: weightedPick(pool, Math.min(questionCount, pool.length))
+  });
+}
+
+function startReview() {
+  const selected = getDueReviewQuestions(30);
+  if (!selected.length) return;
+  startQuiz({
+    mode: "review",
+    round: null,
+    questionCount: selected.length,
+    segment: null,
+    label: "今日の復習",
+    questions: selected
+  });
+}
+
+function startWeakReview() {
+  const selected = getWeakRankedQuestions(15);
+  if (!selected.length) return;
+  startQuiz({
+    mode: "weakreview",
+    round: null,
+    questionCount: selected.length,
+    segment: null,
+    label: "苦手練習",
+    questions: selected
   });
 }
 
@@ -334,7 +365,7 @@ function startQuiz(plan) {
     combo: 0,
     bestCombo: Math.max(0, Number(settings.bestCombo) || 0)
   };
-  lastSessionPlan = { mode: plan.mode, round: plan.round, questionCount: plan.questionCount, segment: plan.segment };
+  lastSessionPlan = { mode: plan.mode, round: plan.round, questionCount: plan.questionCount, segment: plan.segment, label: plan.label, questionIds: plan.questions.map((q) => q.id) };
   renderQuestion();
   showView("quizView");
 }
@@ -426,7 +457,7 @@ function repeatLastSession() {
     startRandomAll();
     return;
   }
-  if (lastSessionPlan.questionCount) {
+  if (lastSessionPlan.questionCount === 15 || lastSessionPlan.questionCount === 30) {
     settings.questionCount = lastSessionPlan.questionCount;
   }
   if (lastSessionPlan.segment) {
@@ -436,11 +467,25 @@ function repeatLastSession() {
   renderHome();
   if (lastSessionPlan.mode === "round") startRound(lastSessionPlan.round);
   else if (lastSessionPlan.mode === "weak") startWeak(lastSessionPlan.round);
+  else if (lastSessionPlan.mode === "review" || lastSessionPlan.mode === "weakreview") repeatQuestionIdSession(lastSessionPlan);
   else startRandomAll();
 }
 
+function repeatQuestionIdSession(plan) {
+  const selected = (plan.questionIds || []).map((id) => getQuestion(id)).filter(Boolean);
+  if (!selected.length) return;
+  startQuiz({
+    mode: plan.mode,
+    round: plan.round,
+    questionCount: selected.length,
+    segment: plan.segment,
+    label: plan.label || "もう一回",
+    questions: selected
+  });
+}
+
 function updateQuestionStats(id, isCorrect) {
-  const s = stats[id] || { attempts: 0, correct: 0, streak: 0, mastered: false, everMastered: false, lastCorrect: null };
+  const s = stats[id] || { attempts: 0, correct: 0, streak: 0, mastered: false, everMastered: false, lastCorrect: null, box: 0, due: null };
   s.attempts += 1;
   s.correct += isCorrect ? 1 : 0;
   if (isCorrect) {
@@ -455,6 +500,8 @@ function updateQuestionStats(id, isCorrect) {
     s.mastered = false;
   }
   s.lastCorrect = isCorrect;
+  s.box = isCorrect ? Math.min(5, (Number(s.box) || 0) + 1) : 1;
+  s.due = addDaysToDateKey(new Date(), INTERVAL_DAYS[s.box]);
   stats[id] = s;
   saveStats();
 }
@@ -470,8 +517,23 @@ function renderHome() {
   $("roundSegmentRow").classList.toggle("active", questionCount === 15);
   $("countdownGrid").innerHTML = TESTS.map(renderCountdownCard).join("");
   $("roundMeters").innerHTML = TESTS.map(renderRoundMeter).join("");
+  renderReviewPrompt();
   renderCalendar($("miniCalendar"));
   $("streakLine").textContent = `連続 ${calculateStreak()} 日`;
+}
+
+function renderReviewPrompt() {
+  const dueCount = getDueReviewQuestions().length;
+  $("reviewStartButton").disabled = dueCount === 0;
+  if (dueCount) {
+    $("reviewTitle").textContent = `今日の復習 ${dueCount}問`;
+    $("reviewText").textContent = dueCount > 30 ? "古いものから30問をテストします。" : "今日もう一度見る問題です。";
+    $("reviewStartButton").textContent = "復習する";
+  } else {
+    $("reviewTitle").textContent = "今日の復習はありません";
+    $("reviewText").textContent = "テストで解いた問題が、次の復習日に出てきます。";
+    $("reviewStartButton").textContent = "復習する";
+  }
 }
 
 function renderCountdownCard(test) {
@@ -584,6 +646,23 @@ function renderRecords() {
     const mastered = questions.filter((q) => q.round === test.round && stats[q.id]?.mastered).length;
     return `<div class="master-row"><span>${test.label}</span><strong>${mastered}/30</strong></div>`;
   }).join("");
+  renderWeakRanking();
+}
+
+function renderWeakRanking() {
+  const ranked = getWeakRankedEntries(10);
+  $("weakReviewButton").disabled = ranked.filter((entry) => entry.question).length === 0;
+  $("weakRanking").innerHTML = ranked.length
+    ? ranked.map((entry) => {
+      const event = entry.question ? entry.question.event : "(問題データなし)";
+      const year = entry.question ? `${entry.question.year}年` : "不明";
+      return `<div class="weak-rank-row">
+        <strong>${escapeHtml(event)}</strong>
+        <span>正解 ${escapeHtml(year)}</span>
+        <span>${entry.attempts}回中${entry.correct}正解（${entry.percent}%）</span>
+      </div>`;
+    }).join("")
+    : `<p class="muted">まだデータがありません。</p>`;
 }
 
 function handleSessionHistoryClick(event) {
@@ -631,6 +710,38 @@ function renderCalendar(container) {
     html += `<div class="day${stampedClass}">${stampedClass ? "★" : day}</div>`;
   }
   container.innerHTML = html;
+}
+
+function getDueReviewQuestions(limit = Infinity) {
+  const today = localDateKey(new Date());
+  const due = questions
+    .map((q) => ({ question: q, stat: stats[q.id] || {} }))
+    .filter(({ stat }) => Number(stat.attempts) > 0 && typeof stat.due === "string" && stat.due <= today)
+    .sort((a, b) => {
+      const dueCompare = a.stat.due.localeCompare(b.stat.due);
+      return dueCompare || a.question.id - b.question.id;
+    })
+    .map(({ question }) => question);
+  return due.slice(0, limit);
+}
+
+function getWeakRankedEntries(limit = Infinity) {
+  const ranked = Object.keys(stats)
+    .map((id) => {
+      const stat = stats[id] || {};
+      const attempts = Number(stat.attempts) || 0;
+      const correct = Number(stat.correct) || 0;
+      const question = getQuestion(Number(id));
+      const rate = attempts ? correct / attempts : 1;
+      return { question, attempts, correct, rate, percent: attempts ? Math.round(rate * 100) : 0 };
+    })
+    .filter((entry) => entry.attempts > 0)
+    .sort((a, b) => (a.rate - b.rate) || (b.attempts - a.attempts) || ((a.question?.id || 9999) - (b.question?.id || 9999)));
+  return ranked.slice(0, limit);
+}
+
+function getWeakRankedQuestions(limit = Infinity) {
+  return getWeakRankedEntries(limit).map((entry) => entry.question).filter(Boolean);
 }
 
 function weightedPick(pool, count) {
@@ -847,6 +958,12 @@ function localDateKey(date) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function addDaysToDateKey(date, days) {
+  const next = startOfLocalDay(date);
+  next.setDate(next.getDate() + days);
+  return localDateKey(next);
 }
 
 function calculateStreak() {
