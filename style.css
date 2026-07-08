@@ -215,11 +215,27 @@ h3 { font-size: 19px; margin-bottom: 12px; }
   margin-bottom: 14px;
 }
 
-.order-row label {
+.order-row label,
+.segment-row label {
   display: inline-flex;
   align-items: center;
   gap: 7px;
   min-height: 40px;
+}
+
+.segment-row {
+  display: none;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f4f7f5;
+}
+
+.segment-row.active {
+  display: flex;
 }
 
 .weak-row {

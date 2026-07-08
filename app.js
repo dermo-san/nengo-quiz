@@ -14,6 +14,9 @@ const TESTS = [
   { round: 4, label: "第4回", date: "2026-09-29", range: "問91〜120" }
 ];
 
+const FIRST_MASTER_STREAK = 3;
+const REMASTER_STREAK = 2;
+
 const $ = (id) => document.getElementById(id);
 const views = ["homeView", "quizView", "feedbackView", "resultView", "recordsView", "settingsView"];
 
@@ -21,7 +24,7 @@ let questionDoc = null;
 let questions = [];
 let stats = {};
 let sessions = [];
-let settings = { order: "ordered" };
+let settings = { order: "ordered", questionCount: 30, roundSegment: "first" };
 let quiz = null;
 let lastSessionPlan = null;
 
@@ -47,6 +50,21 @@ function bindEvents() {
     radio.addEventListener("change", () => {
       settings.order = radio.value;
       saveSettings();
+      renderHome();
+    });
+  });
+  document.querySelectorAll("input[name='questionCount']").forEach((radio) => {
+    radio.addEventListener("change", () => {
+      settings.questionCount = Number(radio.value);
+      saveSettings();
+      renderHome();
+    });
+  });
+  document.querySelectorAll("input[name='roundSegment']").forEach((radio) => {
+    radio.addEventListener("change", () => {
+      settings.roundSegment = radio.value;
+      saveSettings();
+      renderHome();
     });
   });
   document.querySelectorAll(".round-start").forEach((button) => {
@@ -75,9 +93,15 @@ function bindEvents() {
 function loadLocalState() {
   stats = readJson(STORAGE.stats, {});
   sessions = readJson(STORAGE.sessions, []);
-  settings = { order: "ordered", ...readJson(STORAGE.settings, {}) };
+  settings = normalizeSettings(readJson(STORAGE.settings, {}));
   document.querySelectorAll("input[name='order']").forEach((radio) => {
     radio.checked = radio.value === settings.order;
+  });
+  document.querySelectorAll("input[name='questionCount']").forEach((radio) => {
+    radio.checked = Number(radio.value) === settings.questionCount;
+  });
+  document.querySelectorAll("input[name='roundSegment']").forEach((radio) => {
+    radio.checked = radio.value === settings.roundSegment;
   });
 }
 
@@ -147,11 +171,13 @@ function ensureStats() {
   const next = {};
   for (const q of questions) {
     const current = stats[q.id] || {};
+    const mastered = Boolean(current.mastered);
     next[q.id] = {
       attempts: Number(current.attempts) || 0,
       correct: Number(current.correct) || 0,
       streak: Number(current.streak) || 0,
-      mastered: Boolean(current.mastered),
+      mastered,
+      everMastered: typeof current.everMastered === "boolean" ? current.everMastered : mastered,
       lastCorrect: typeof current.lastCorrect === "boolean" ? current.lastCorrect : null
     };
   }
@@ -160,31 +186,45 @@ function ensureStats() {
 
 function startRound(round) {
   let selected = questions.filter((q) => q.round === round).sort((a, b) => a.id - b.id);
+  const questionCount = getQuestionCount();
+  const segment = getRoundSegment();
+  if (questionCount === 15) {
+    const col = (round - 1) * 2 + (segment === "second" ? 2 : 1);
+    selected = selected.filter((q) => q.col === col);
+  }
   if (settings.order === "shuffle") selected = shuffle(selected);
   startQuiz({
     mode: "round",
     round,
-    label: `${TESTS[round - 1].label} ${settings.order === "shuffle" ? "シャッフル" : "順番"}`,
+    questionCount,
+    segment: questionCount === 15 ? segment : null,
+    label: `${TESTS[round - 1].label} ${questionCount}問${questionCount === 15 ? ` ${segment === "second" ? "後半" : "前半"}` : ""} ${settings.order === "shuffle" ? "シャッフル" : "順番"}`,
     questions: selected
   });
 }
 
 function startRandomAll() {
+  const questionCount = getQuestionCount();
   startQuiz({
     mode: "random",
     round: null,
-    label: "全範囲ランダム",
-    questions: shuffle(questions).slice(0, 30)
+    questionCount,
+    segment: null,
+    label: `全範囲ランダム ${questionCount}問`,
+    questions: shuffle(questions).slice(0, questionCount)
   });
 }
 
 function startWeak(round) {
   const pool = round ? questions.filter((q) => q.round === round) : questions;
+  const questionCount = getQuestionCount();
   startQuiz({
     mode: "weak",
     round,
-    label: round ? `${TESTS[round - 1].label} 苦手優先` : "苦手優先 全範囲",
-    questions: weightedPick(pool, Math.min(30, pool.length))
+    questionCount,
+    segment: null,
+    label: round ? `${TESTS[round - 1].label} 苦手優先 ${questionCount}問` : `苦手優先 全範囲 ${questionCount}問`,
+    questions: weightedPick(pool, Math.min(questionCount, pool.length))
   });
 }
 
@@ -198,7 +238,7 @@ function startQuiz(plan) {
     combo: 0,
     bestCombo: Math.max(0, Number(settings.bestCombo) || 0)
   };
-  lastSessionPlan = { mode: plan.mode, round: plan.round };
+  lastSessionPlan = { mode: plan.mode, round: plan.round, questionCount: plan.questionCount, segment: plan.segment };
   renderQuestion();
   showView("quizView");
 }
@@ -277,17 +317,34 @@ function repeatLastSession() {
     startRandomAll();
     return;
   }
+  if (lastSessionPlan.questionCount) {
+    settings.questionCount = lastSessionPlan.questionCount;
+  }
+  if (lastSessionPlan.segment) {
+    settings.roundSegment = lastSessionPlan.segment;
+  }
+  syncSettingsControls();
+  renderHome();
   if (lastSessionPlan.mode === "round") startRound(lastSessionPlan.round);
   else if (lastSessionPlan.mode === "weak") startWeak(lastSessionPlan.round);
   else startRandomAll();
 }
 
 function updateQuestionStats(id, isCorrect) {
-  const s = stats[id] || { attempts: 0, correct: 0, streak: 0, mastered: false, lastCorrect: null };
+  const s = stats[id] || { attempts: 0, correct: 0, streak: 0, mastered: false, everMastered: false, lastCorrect: null };
   s.attempts += 1;
   s.correct += isCorrect ? 1 : 0;
-  s.streak = isCorrect ? s.streak + 1 : 0;
-  s.mastered = s.mastered || s.streak >= 3;
+  if (isCorrect) {
+    s.streak += 1;
+    const threshold = s.everMastered ? REMASTER_STREAK : FIRST_MASTER_STREAK;
+    if (s.streak >= threshold) {
+      s.mastered = true;
+      s.everMastered = true;
+    }
+  } else {
+    s.streak = 0;
+    s.mastered = false;
+  }
   s.lastCorrect = isCorrect;
   stats[id] = s;
   saveStats();
@@ -299,6 +356,9 @@ function renderAll() {
 }
 
 function renderHome() {
+  const questionCount = getQuestionCount();
+  $("roundModeTitle").textContent = `回別${questionCount}問`;
+  $("roundSegmentRow").classList.toggle("active", questionCount === 15);
   $("countdownGrid").innerHTML = TESTS.map(renderCountdownCard).join("");
   $("roundMeters").innerHTML = TESTS.map(renderRoundMeter).join("");
   renderCalendar($("miniCalendar"));
@@ -354,6 +414,7 @@ function renderResult(session) {
   const percent = Math.round((session.correct / session.count) * 100);
   $("resultPercent").textContent = `${percent}%`;
   $("resultScore").textContent = `${session.correct}/${session.count}`;
+  $("againButton").textContent = `もう一回${session.count}問`;
   $("scoreFill").style.width = `${percent}%`;
   $("resultMessage").textContent = percent === 100 ? "満点マスター！" : percent >= 90 ? "目標クリア！" : percent >= 80 ? "合格ラインクリア！" : "あと少しで合格";
   const wrong = session.answers.filter((a) => !a.correct);
@@ -498,9 +559,10 @@ function importData() {
     questions = [...doc.questions].sort((a, b) => a.id - b.id);
     stats = bundle[STORAGE.stats] || {};
     sessions = Array.isArray(bundle[STORAGE.sessions]) ? bundle[STORAGE.sessions] : [];
-    settings = { order: "ordered", ...(bundle[STORAGE.settings] || settings) };
+    settings = normalizeSettings(bundle[STORAGE.settings] || settings);
     ensureStats();
     saveAll();
+    syncSettingsControls();
     renderAll();
     showDataMessage("インポートしました。", false);
     $("dataStatus").textContent = questionDoc.title || "問題120問";
@@ -514,7 +576,8 @@ function clearAllData() {
   Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
   stats = {};
   sessions = [];
-  settings = { order: "ordered" };
+  settings = { order: "ordered", questionCount: 30, roundSegment: "first" };
+  syncSettingsControls();
   loadInitialQuestions().then(() => {
     showDataMessage("保存データを消去しました。サンプルを読み込み直しました。", false);
   });
@@ -543,6 +606,37 @@ function saveSessions() {
 
 function saveSettings() {
   localStorage.setItem(STORAGE.settings, JSON.stringify(settings));
+}
+
+function normalizeSettings(source) {
+  const next = { order: "ordered", questionCount: 30, roundSegment: "first", ...source };
+  next.order = next.order === "shuffle" ? "shuffle" : "ordered";
+  next.questionCount = Number(next.questionCount) === 15 ? 15 : 30;
+  next.roundSegment = next.roundSegment === "second" ? "second" : "first";
+  if (Number.isFinite(Number(next.bestCombo))) {
+    next.bestCombo = Number(next.bestCombo);
+  }
+  return next;
+}
+
+function syncSettingsControls() {
+  document.querySelectorAll("input[name='order']").forEach((radio) => {
+    radio.checked = radio.value === settings.order;
+  });
+  document.querySelectorAll("input[name='questionCount']").forEach((radio) => {
+    radio.checked = Number(radio.value) === settings.questionCount;
+  });
+  document.querySelectorAll("input[name='roundSegment']").forEach((radio) => {
+    radio.checked = radio.value === settings.roundSegment;
+  });
+}
+
+function getQuestionCount() {
+  return Number(settings.questionCount) === 15 ? 15 : 30;
+}
+
+function getRoundSegment() {
+  return settings.roundSegment === "second" ? "second" : "first";
 }
 
 function readJson(key, fallback) {

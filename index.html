@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="年号120">
   <title>年号120</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -34,10 +35,18 @@
         <div class="meter-grid" id="roundMeters"></div>
 
         <section class="panel">
-          <h3>回別30問</h3>
+          <h3 id="roundModeTitle">回別30問</h3>
+          <div class="order-row" role="group" aria-label="出題数">
+            <label><input type="radio" name="questionCount" value="30" checked> 30問</label>
+            <label><input type="radio" name="questionCount" value="15"> 15問</label>
+          </div>
           <div class="order-row" role="group" aria-label="出題順">
             <label><input type="radio" name="order" value="ordered" checked> 順番どおり</label>
             <label><input type="radio" name="order" value="shuffle"> シャッフル</label>
+          </div>
+          <div class="segment-row" id="roundSegmentRow" role="group" aria-label="15問の範囲">
+            <label><input type="radio" name="roundSegment" value="first" checked> 前半</label>
+            <label><input type="radio" name="roundSegment" value="second"> 後半</label>
           </div>
           <div class="round-grid">
             <button class="primary round-start" data-round="1" type="button">第1回</button>
