@@ -399,6 +399,13 @@ select {
   font-weight: 800;
 }
 
+.best-combo {
+  min-height: 30px;
+  color: var(--gold);
+  font-size: 22px;
+  font-weight: 900;
+}
+
 .result-hero {
   text-align: center;
   padding: 14px 0 18px;
@@ -425,7 +432,32 @@ select {
 
 .score-gauge {
   height: 28px;
-  margin-bottom: 18px;
+  overflow: visible;
+  margin-bottom: 34px;
+}
+
+.score-gauge .line {
+  top: 100%;
+  width: 34px;
+  height: auto;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.score-gauge .line::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 2px;
+  height: 28px;
+  background: rgba(16, 35, 31, 0.65);
+  transform: translateX(-50%);
 }
 
 .wrong-item {

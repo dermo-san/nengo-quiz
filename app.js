@@ -260,6 +260,7 @@ function submitAnswer() {
   const value = Number.parseInt(quiz.input, 10);
   const isCorrect = value === q.year;
   quiz.combo = isCorrect ? quiz.combo + 1 : 0;
+  const isBestCombo = isCorrect && quiz.combo > quiz.bestCombo && quiz.combo > 1;
   if (quiz.combo > quiz.bestCombo) {
     quiz.bestCombo = quiz.combo;
     settings.bestCombo = quiz.bestCombo;
@@ -267,7 +268,7 @@ function submitAnswer() {
   }
   quiz.answers.push({ questionId: q.id, input: value, correct: isCorrect });
   updateQuestionStats(q.id, isCorrect);
-  renderFeedback(q, value, isCorrect);
+  renderFeedback(q, value, isCorrect, isBestCombo);
   showView("feedbackView");
 }
 
@@ -401,10 +402,11 @@ function renderInput() {
   $("answerButton").disabled = !quiz?.input;
 }
 
-function renderFeedback(q, input, isCorrect) {
+function renderFeedback(q, input, isCorrect, isBestCombo) {
   $("feedbackMark").textContent = isCorrect ? "○" : "×";
   $("feedbackMark").classList.toggle("wrong", !isCorrect);
   $("feedbackTitle").textContent = isCorrect ? "正解！" : "次で覚えよう";
+  $("feedbackBestCombo").textContent = isBestCombo ? `自己ベスト更新！${quiz.combo}コンボ` : "";
   $("feedbackCorrect").textContent = `${q.event} → ${q.year}年`;
   $("feedbackYourAnswer").textContent = isCorrect ? "" : `自分の答え: ${input}年`;
   $("feedbackGoro").textContent = q.goro ? `語呂: ${q.goro}` : "";
