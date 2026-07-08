@@ -84,7 +84,7 @@ function bindEvents() {
   $("sampleLoadButton").addEventListener("click", async () => {
     const doc = await fetchSampleQuestions();
     applyQuestions(doc, true);
-    showDataMessage("サンプルデータを読み込みました。", false);
+    showDataMessage("初期データを読み込みました。", false);
   });
   $("exportButton").addEventListener("click", exportData);
   $("importButton").addEventListener("click", importData);
@@ -609,7 +609,7 @@ function clearAllData() {
   settings = { order: "ordered", questionCount: 30, roundSegment: "first" };
   syncSettingsControls();
   loadInitialQuestions().then(() => {
-    showDataMessage("保存データを消去しました。サンプルを読み込み直しました。", false);
+    showDataMessage("保存データを消去しました。初期データを読み込み直しました。", false);
   });
 }
 
